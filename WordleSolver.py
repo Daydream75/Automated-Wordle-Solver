@@ -1,10 +1,49 @@
 import sqlite3
-import re
-import sys
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from python_imagesearch.imagesearch import *
+import time
+from PIL import ImageGrab
 
 # Connects to the wordleWords database
 connection = sqlite3.connect("wordleWords.db")
 cursor = connection.cursor()
+
+# Opens the wordle webpage in chrome
+wordleURL = 'https://www.nytimes.com/games/wordle/index.html'
+chromeOptions = webdriver.ChromeOptions()
+chromeOptions.add_argument("--incognito")
+chromeOptions.add_experimental_option("detach", True)
+browser = webdriver.Chrome(options=chromeOptions)
+browser.get(wordleURL)
+timeWaited = 0 # In case this popup is removed in the future, this ensures the code doesn't get in loop
+
+# Closes a window about wordle's updated terms and conditions
+position = imagesearch("./WordleContinueButton.png")
+while position == [-1,-1] and timeWaited < 5:  # Gives some extra time for page to load
+    time.sleep(.1) # Time between checks
+    timeWaited += .1
+    position = imagesearch("./WordlePlayButton.png") # Looks for image on screen and updates position, returns [-1,-1] if not found
+pyautogui.click(position[0]+15, position[1]+15)
+
+timeWaited = 0
+# Finds the next popup and closes it
+position = imagesearch("./WordlePlayButton.png")
+while position == [-1,-1] and timeWaited < 5:
+    time.sleep(.1)
+    position = imagesearch("./WordlePlayButton.png")
+pyautogui.click(position[0]+15, position[1]+15)
+
+# Presses esc to close the final popup
+time.sleep(.5)
+pyautogui.press('esc')
+
+# Finds the wordle board
+position = imagesearch("./WordleBoard.png")
+while position == [-1,-1]:
+    time.sleep(.1)
+    position = imagesearch("./WordleBoard.png")
 
 # Picks a word from all the possible words based on its character score
 result = cursor.execute("SELECT word FROM words ORDER BY score DESC")
@@ -17,20 +56,33 @@ lettersAreNot = [[],[],[],[],[]]
 lettersSomeWhere = []
 confirmedLetters = [0,0,0,0,0]
 
+# Types the first word in the chat and then enters it
+pyautogui.write(lastWordTried, interval=0.25)
+pyautogui.press('enter')
+
+# Makes a list of offsets
+xPositionOffset = [15,82,149,216,283]
+yPositionOffset = [15,85,152,219,286]
+
+# Yellow RGB (181, 159, 59)
+# Gray RGB (58, 58, 60)
+# Green RGB (83, 141, 78)
+
 # Repeats steps 5 times until the wordle is solved or attempts run out
 for i in range(5):
-    # Gets the result from the user and checks if it is a valid input
-    while True:
-        wordleResult = input("Enter a 0 for wrong character, 1 for wrong place right character, and 2 for correct character. Example - 00122.\nEnter 'Another' for a differnet word to try: ")
-        # User can request a different word, mainly used when testing the program on other wordle sites as their word lists are smaller than the official wordle list
-        if wordleResult.lower() == "another":
-            lastWordTried = potentialWords.pop(0)
-            print("\nNext word to try - " + lastWordTried)
-            continue
-        if re.search("^[0-2]{5}$",wordleResult) != None:
-            break
+    # Gets the results from the last word entered
+    wordleResult = ""
+    time.sleep(2)
+    for j in range(5):
+        r,g,b = ImageGrab.grab(bbox=(position[0]+xPositionOffset[j], position[1]+xPositionOffset[i], position[0]+xPositionOffset[j]+1, position[1]+xPositionOffset[i]+1)).convert('RGB').getpixel((0,0))
+        if r == 181:
+            wordleResult += "1"
+        elif r == 83:
+            wordleResult += "2"
         else:
-            print("\nThat's not a valid option, please try again.")
+            wordleResult += "0"
+    
+    print(wordleResult)
 
     # Handles if lastWordTried is correct
     if wordleResult == "22222":
@@ -94,3 +146,7 @@ for i in range(5):
         print("There are no words that meet the requirements.")
         break
     print("\nNext word to try - " + lastWordTried)
+
+    # Types the first word in the chat and then enters it
+    pyautogui.write(lastWordTried, interval=0.25)
+    pyautogui.press('enter')
