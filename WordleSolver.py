@@ -1,12 +1,13 @@
 import sqlite3
 import re
+import sys
 
 # Connects to the wordleWords database
 connection = sqlite3.connect("wordleWords.db")
 cursor = connection.cursor()
 
-# Prints a random starting word for the user to try
-result = cursor.execute("SELECT word FROM words ORDER BY RANDOM()")
+# Picks a word from all the possible words based on its character score
+result = cursor.execute("SELECT word FROM words ORDER BY score DESC")
 potentialWords = [x[0] for x in result.fetchall()]
 lastWordTried = potentialWords.pop(0)
 print("\nRandom starting word - " + lastWordTried)
@@ -84,8 +85,8 @@ for i in range(5):
         listString = listString[:len(listString)-1] + ")"
         whereConditions += listString
 
-    # Picks a random word from all the possible words given the previous conditions
-    result = cursor.execute("SELECT word FROM words WHERE " + whereConditions + "ORDER BY RANDOM()")
+    # Picks a word from all the possible words given the previous conditions based on its character score
+    result = cursor.execute("SELECT word FROM words WHERE " + whereConditions + "ORDER BY score DESC")
     potentialWords = [x[0] for x in result.fetchall()]
     if len(potentialWords) > 0:
         lastWordTried = potentialWords.pop(0)
