@@ -1,10 +1,11 @@
 import sqlite3
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from python_imagesearch.imagesearch import *
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 import time
-from PIL import ImageGrab
+import pyautogui
 
 # Connects to the wordleWords database
 connection = sqlite3.connect("wordleWords.db")
@@ -17,39 +18,33 @@ chromeOptions.add_argument("--incognito")
 chromeOptions.add_experimental_option("detach", True)
 browser = webdriver.Chrome(options=chromeOptions)
 browser.get(wordleURL)
-timeWaited = 0 # In case this popup is removed in the future, this ensures the code doesn't get in loop
 
-# Closes a window about wordle's updated terms and conditions
-position = imagesearch("./WordleContinueButton.png")
-while position == [-1,-1] and timeWaited < 5:  # Gives some extra time for page to load
-    time.sleep(.1) # Time between checks
-    timeWaited += .1
-    position = imagesearch("./WordlePlayButton.png") # Looks for image on screen and updates position, returns [-1,-1] if not found
-pyautogui.click(position[0]+15, position[1]+15)
+# Closes the three popups that appear
+# They are inside try-except so that if these elements are later removed from the wordle site it doesn't break this code
+# If they are later changed then this might will need updated as they might not be found/closed properly
+try:
+    continueButton = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//BUTTON[@Class='purr-blocker-card__button']")))
+    continueButton.click()
+except TimeoutException:
+    pass
 
-timeWaited = 0
-# Finds the next popup and closes it
-position = imagesearch("./WordlePlayButton.png")
-while position == [-1,-1] and timeWaited < 5:
-    time.sleep(.1)
-    position = imagesearch("./WordlePlayButton.png")
-pyautogui.click(position[0]+15, position[1]+15)
+try:
+    playButton = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//button[@data-testid='Play']")))
+    playButton.click()
+except TimeoutException:
+    pass
 
-# Presses esc to close the final popup
-time.sleep(.5)
-pyautogui.press('esc')
-
-# Finds the wordle board
-position = imagesearch("./WordleBoard.png")
-while position == [-1,-1]:
-    time.sleep(.1)
-    position = imagesearch("./WordleBoard.png")
+try:
+    xButton = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//button[@aria-label='Close']")))
+    xButton.click()
+except TimeoutException:
+    pass
 
 # Picks a word from all the possible words based on its character score
 result = cursor.execute("SELECT word FROM words ORDER BY score DESC")
 potentialWords = [x[0] for x in result.fetchall()]
 lastWordTried = potentialWords.pop(0)
-print("\nRandom starting word - " + lastWordTried)
+print("\nStarting word - " + lastWordTried)
 
 # Makes lists to track what letters can't be, letters that occur somewhere, and confirmed letters
 lettersAreNot = [[],[],[],[],[]]
@@ -57,32 +52,23 @@ lettersSomeWhere = []
 confirmedLetters = [0,0,0,0,0]
 
 # Types the first word in the chat and then enters it
-pyautogui.write(lastWordTried, interval=0.25)
+time.sleep(1)
+pyautogui.write(lastWordTried, interval=.05)
 pyautogui.press('enter')
-
-# Makes a list of offsets
-xPositionOffset = [15,82,149,216,283]
-yPositionOffset = [15,85,152,219,286]
-
-# Yellow RGB (181, 159, 59)
-# Gray RGB (58, 58, 60)
-# Green RGB (83, 141, 78)
 
 # Repeats steps 5 times until the wordle is solved or attempts run out
 for i in range(5):
+
     # Gets the results from the last word entered
     wordleResult = ""
-    time.sleep(2)
     for j in range(5):
-        r,g,b = ImageGrab.grab(bbox=(position[0]+xPositionOffset[j], position[1]+xPositionOffset[i], position[0]+xPositionOffset[j]+1, position[1]+xPositionOffset[i]+1)).convert('RGB').getpixel((0,0))
-        if r == 181:
-            wordleResult += "1"
-        elif r == 83:
-            wordleResult += "2"
-        else:
-            wordleResult += "0"
-    
-    print(wordleResult)
+        status = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//div[@aria-label='Row " + str(i+1) + "']/descendant::div[@style='animation-delay: " + str(j * 100) + "ms;']/descendant::div[@class='Tile-module_tile__UWEHN']"))).get_attribute("data-state")
+        while status == "tbd":
+            time.sleep(.1)
+            status = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//div[@aria-label='Row " + str(i+1) + "']/descendant::div[@style='animation-delay: " + str(j * 100) + "ms;']/descendant::div[@class='Tile-module_tile__UWEHN']"))).get_attribute("data-state")
+        if status == "absent": wordleResult += "0"
+        elif status == "present": wordleResult += "1"
+        else: wordleResult += "2"
 
     # Handles if lastWordTried is correct
     if wordleResult == "22222":
@@ -90,7 +76,7 @@ for i in range(5):
         break
 
     # Parses through wordleResult and adds the letters to the appropriate lists
-    for i in range(len(wordleResult)):
+    for i in range(len(wordleResult.lower())):
         # If letter is in word but not that spot
         if wordleResult[i] == "1":
             lettersAreNot[i].append(lastWordTried[i])
@@ -148,5 +134,6 @@ for i in range(5):
     print("\nNext word to try - " + lastWordTried)
 
     # Types the first word in the chat and then enters it
+    time.sleep(.5)
     pyautogui.write(lastWordTried, interval=0.25)
     pyautogui.press('enter')
