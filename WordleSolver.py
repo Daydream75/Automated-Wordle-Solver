@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -6,6 +7,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import time
 import pyautogui
+import DatabaseCreator
+
+if not os.path.isfile("wordleWords.db"):
+    DatabaseCreator.makeDB()
 
 # Connects to the wordleWords database
 connection = sqlite3.connect("wordleWords.db")
