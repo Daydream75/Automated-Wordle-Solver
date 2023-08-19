@@ -5,6 +5,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import pyautogui
 import DatabaseCreator
@@ -21,7 +23,7 @@ wordleURL = 'https://www.nytimes.com/games/wordle/index.html'
 chromeOptions = webdriver.ChromeOptions()
 chromeOptions.add_argument("--incognito")
 chromeOptions.add_experimental_option("detach", True)
-browser = webdriver.Chrome(options=chromeOptions)
+browser = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chromeOptions)
 browser.get(wordleURL)
 
 # Closes the three popups that appear
