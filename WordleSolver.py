@@ -26,14 +26,9 @@ chromeOptions.add_experimental_option("detach", True)
 browser = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chromeOptions)
 browser.get(wordleURL)
 
-# Closes the three popups that appear
+# Closes the popups that appear
 # They are inside try-except so that if these elements are later removed from the wordle site it doesn't break this code
-# If they are later changed then this might will need updated as they might not be found/closed properly
-try:
-    continueButton = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//BUTTON[@Class='purr-blocker-card__button']")))
-    continueButton.click()
-except TimeoutException:
-    pass
+# If the popups are later changed then this will need updated as they might not be found/closed properly
 
 try:
     playButton = WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.XPATH, "//button[@data-testid='Play']")))
